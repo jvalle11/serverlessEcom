@@ -1,68 +1,38 @@
-const { postToShopify } = require("./utils/postToShopify");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY); // Use environment variable for security
 
 exports.handler = async () => {
   try {
-    const shopifyResponse = await postToShopify({
-      query: `
-        query getProductList {
-          products(sortKey: TITLE, first: 100) {
-            edges {
-              node {
-                id
-                handle
-                description
-                title
-                totalInventory
-                variants(first: 5) {
-                  edges {
-                    node {
-                      id
-                      title
-                      quantityAvailable
-                      priceV2 {
-                        amount
-                        currencyCode
-                      }
-                    }
-                  }
-                }
-                priceRange {
-                  maxVariantPrice {
-                    amount
-                    currencyCode
-                  }
-                  minVariantPrice {
-                    amount
-                    currencyCode
-                  }
-                }
-                images(first: 1) {
-                  edges {
-                    node {
-                      src
-                      altText
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      `,
-    }).then((response) => {
-      return response.products.edges.map((edge) => {
-        const product = edge.node;
-        const image = product.images.edges[0].node;
-        product.image = image.src;
-        return product;
-      });
+    // Fetch products from Stripe
+    const stripeProducts = await stripe.products.list({
+      limit: 100, // Adjust as needed
     });
+
+    // Fetch prices for each product
+    const productDetails = await Promise.all(
+      stripeProducts.data.map(async (product) => {
+        const prices = await stripe.prices.list({ product: product.id });
+        const defaultPrice = prices.data[0]; // Assuming a default price for now
+
+        return {
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          image: product.images[0],
+          price: defaultPrice.unit_amount / 100, // Convert to dollars
+          currency: defaultPrice.currency,
+        };
+      })
+    );
 
     return {
       statusCode: 200,
-      body: JSON.stringify(shopifyResponse),
+      body: JSON.stringify(productDetails),
     };
   } catch (error) {
-    console.log(error);
+    console.error("Error fetching products from Stripe:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Failed to fetch products" }),
+    };
   }
 };
