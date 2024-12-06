@@ -45,16 +45,13 @@
             value="1"
             class="product-page-quantity-input"
           />
-          <input type="hidden" name="cartId" value="" />
           <button
-            (click)="
-              addToCart({
-                itemId: selectedProductId,
-                quantity: selectedQuantity
-              })
-            "
+            (click)="redirectToCheckout({
+              priceId: selectedProductId,
+              quantity: selectedQuantity
+            })"
           >
-            Add to Cart
+            Buy Now
           </button>
         </div>
       </form>

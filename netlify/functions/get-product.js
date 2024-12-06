@@ -2,82 +2,69 @@
  * Get Product API Endpoint
  *
  * * Purpose: Retrieve data on a specific product
- * @param {string} itemHandle - kebab-cased-product-name
+ * @param {string} itemId - Stripe product ID
  *
  * Example:
  * ```
  * fetch('/.netlify/functions/get-product', {
  *   method: 'POST',
- *   body: JSON.stringify({ itemHandle: 'my-product' })
+ *   body: JSON.stringify({ itemId: 'prod_123456789' })
  * })
  * ```
  */
 
-const { postToShopify } = require("./utils/postToShopify");
+const { stripeClient } = require("./utils/stripeClient");
 
 exports.handler = async (event) => {
-  const { itemHandle } = JSON.parse(event.body);
+  const { itemId } = JSON.parse(event.body);
 
   try {
     console.log("--------------------------------");
     console.log("Retrieving product details...");
     console.log("--------------------------------");
-    const shopifyResponse = await postToShopify({
-      query: `
-        query getProduct($handle: String!) {
-          productByHandle(handle: $handle) {
-            id
-            handle
-            description
-            title
-            totalInventory
-            variants(first: 5) {
-              edges {
-                node {
-                  id
-                  title
-                  quantityAvailable
-                  priceV2 {
-                    amount
-                    currencyCode
-                  }
-                }
-              }
-            }
-            priceRange {
-              maxVariantPrice {
-                amount
-                currencyCode
-              }
-              minVariantPrice {
-                amount
-                currencyCode
-              }
-            }
-            images(first: 1) {
-              edges {
-                node {
-                  src
-                  altText
-                }
-              }
-            }
+    
+    // Fetch product and its prices from Stripe
+    const product = await stripeClient.products.retrieve(itemId, {
+      expand: ['default_price']
+    });
+
+    // Get all prices for this product
+    const prices = await stripeClient.prices.list({
+      product: itemId,
+      active: true,
+    });
+
+    // Format the response to match your frontend expectations
+    const formattedResponse = {
+      id: product.id,
+      handle: product.metadata.handle || product.id, // You can store handle in metadata
+      description: product.description,
+      title: product.name,
+      image: product.images[0], // First image
+      variants: prices.data.map(price => ({
+        node: {
+          id: price.id,
+          title: price.nickname || 'Default',
+          quantityAvailable: null, // Stripe doesn't track inventory by default
+          priceV2: {
+            amount: price.unit_amount / 100, // Stripe stores amounts in cents
+            currencyCode: price.currency.toUpperCase()
           }
         }
-      `,
-      variables: {
-        handle: itemHandle,
-      },
-    });
+      }))
+    };
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        ...shopifyResponse.productByHandle,
-        image: shopifyResponse.productByHandle.images.edges[0].node.src,
-      }),
+      body: JSON.stringify(formattedResponse)
     };
   } catch (error) {
     console.log(error);
+    return {
+      statusCode: error.statusCode || 500,
+      body: JSON.stringify({
+        error: error.message
+      })
+    };
   }
 };

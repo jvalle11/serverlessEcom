@@ -1,3 +1,6 @@
 export const environment = {
-  production: true
+  production: true,
+  stripe: {
+    publishableKey: process.env['STRIPE_PUBLISHABLE_KEY'] || '',
+  }
 };
