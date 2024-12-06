@@ -1,6 +1,7 @@
 [build]
-  publish = "dist/angular-shopify"
   command = "ng build --prod"
+  publish = "dist/angular-shopify"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

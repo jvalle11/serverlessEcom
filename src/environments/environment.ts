@@ -4,9 +4,7 @@
 
 export const environment = {
   production: false,
-  stripe: {
-    publishableKey: process.env['STRIPE_PUBLISHABLE_KEY'] || '',
-  }
+  stripePublishableKey: 'your-stripe-publishable-key-here',
 };
 
 /*

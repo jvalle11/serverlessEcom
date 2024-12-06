@@ -45,14 +45,7 @@
             value="1"
             class="product-page-quantity-input"
           />
-          <button
-            (click)="redirectToCheckout({
-              priceId: selectedProductId,
-              quantity: selectedQuantity
-            })"
-          >
-            Buy Now
-          </button>
+          <button (click)="redirectToCheckout(product.id)">Buy Now</button>
         </div>
       </form>
     </div>
